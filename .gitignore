@@ -1,4 +1,7 @@
 .vscode
+./build
+/CMakeFiles
+/vcpkg_installed
 venv
 .ipynb*
 build

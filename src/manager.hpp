@@ -89,7 +89,7 @@ public:
     const std::unordered_set<std::string>& get_devices() const { return _devices; }
 
     std::string register_device() {
-        std::string path{"/net/reactivated/Device/"};
+        std::string path{"/net/reactivated/Fprint/Device/"};
         path.append(std::to_string(_next_id));
         _next_id += 1;
         _devices.emplace(path);

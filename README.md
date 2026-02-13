@@ -1,7 +1,6 @@
-
 ## USB fingerprint sensor driver
 
-Supported device: FPC Sensor Controller L:0001 FW:021.26.2.x (10a5:9201)
+Supported device: FPC Sensor Controller L:0002 FW:022.26.2.x (10a5:a900)
 
 ## Environment
 
@@ -12,7 +11,7 @@ Archlinux: `pacman --noconfirm -S libusb libevent libdbus openssl libopencv-dev 
 ## Build
 
 ```bash
-git clone https://github.com/vrolife/fingerprint-ocv
+git clone https://github.com/elemantreum/fingerprint-ocv
 cd fingerprint-ocv
 git submodule init
 git submodule update
@@ -23,4 +22,4 @@ cp build/src/fingerprint-ocv /path/to/somewhere
 
 ## Install && Binary
 
-[Link](https://github.com/vrolife/modern_laptop/tree/main/drivers/fingerprint)
+TODO

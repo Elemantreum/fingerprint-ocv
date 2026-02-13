@@ -59,11 +59,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "fpc9201.hpp"
 #include "manager.hpp"
 #include "fingerprint.hpp"
+#include <opencv4/opencv2/imgcodecs.hpp>
 
 #define CTRL_HOST_TO_DEVICE 0x40
 #define CTRL_DEVICE_TO_HOST 0xC0
-#define SENSOR_WIDTH 112
+#define SENSOR_WIDTH 64
 #define SENSOR_HEIGHT 88
+#define SENSOR_RAW_SIZE (128 * 88)  // размер сырых данных с сенсора
+
 
 namespace  fpc9201 {
 
@@ -99,17 +102,21 @@ static void start(fingerpp::Manager* manager, fingerpp::USBDeviceInfo* info, USB
 static
 cv::Mat load_data_and_proc(const std::vector<unsigned char>& pixels)
 {
-    cv::Mat raw{cv::Size{112, 88}, CV_8UC1};
-    memcpy(raw.data, pixels.data(), pixels.size());
+    // Берём первые 64 байта из каждой строки шириной 128
+    cv::Mat raw{cv::Size{SENSOR_WIDTH, SENSOR_HEIGHT}, CV_8UC1};
+    for (int row = 0; row < SENSOR_HEIGHT; row++) {
+        memcpy(raw.data + row * SENSOR_WIDTH, pixels.data() + row * 128, SENSOR_WIDTH);
+    }
 
-    cv::Mat eqh{cv::Size{112, 88}, CV_8UC1};
+    cv::Mat eqh{cv::Size{SENSOR_WIDTH, SENSOR_HEIGHT}, CV_8UC1};
     cv::equalizeHist(raw, eqh);
 
-    cv::Mat gam{cv::Size(112, 88), CV_8UC1};
+    cv::Mat gam{cv::Size(SENSOR_WIDTH, SENSOR_HEIGHT), CV_8UC1};
     cvext::gamma<unsigned char>(eqh, gam, 1.5);
 
-    cv::Mat img{cv::Size(224, 176), CV_8UC1};
-    cv::resize(gam, img, {224, 176});
+    // Масштабируем ×2 т.к. 64x88 маловато для SIFT
+    cv::Mat img{cv::Size(SENSOR_WIDTH * 2, SENSOR_HEIGHT * 2), CV_8UC1};
+    cv::resize(gam, img, {SENSOR_WIDTH * 2, SENSOR_HEIGHT * 2});
     return img;
 }
 
@@ -251,9 +258,10 @@ protected:
                 buf->consume(iobuf.size()).abort_on(Failed_, "buffer overflow");
             }
 
-            assert(pixels.size() == (SENSOR_WIDTH * SENSOR_HEIGHT));
+            assert(pixels.size() == SENSOR_RAW_SIZE);
 
             cv::Mat partial = load_data_and_proc(pixels);
+
 
 #ifdef USE_HIGHGUI
             bool debug = GET_OPTION(bool, "debug");
@@ -926,7 +934,23 @@ protected:
         AsyncDBusMessage reply{
             dbus_message_new_method_return(get_message())
         };
-        return *this / _send_message(_connection, reply) / &WorkerDevice::run;
+        return *this / _send_message(_connection, reply) / &WorkerDevice::send_finger_selected;
+    }
+
+    Async send_finger_selected() {
+        const char* selected_finger = "right-index-finger";
+        _storage->foreach(_claimed_user, [&](Fingerprint& print){
+            selected_finger = print._name.c_str();
+            return true; 
+        });
+
+        AsyncDBusMessage signal{
+            dbus_message_new_signal(_dbus_path.c_str(), "net.reactivated.Fprint.Device", "VerifyFingerSelected")
+        };
+        DBusMessageIter iter{};
+        dbus_message_iter_init_append(signal, &iter);
+        dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &selected_finger);
+        return *this / _send_message(_connection, signal) / &WorkerDevice::run;
     }
 
     Async enroll_verify_stop() {
@@ -1607,7 +1631,7 @@ protected:
             data[2], data[3]);
         
         // 21.26.2.x
-        if (data[0] != 21 || data[1] != 26 || data[2] != 2) {
+        if (data[0] != 22 || data[1] != 26 || data[2] != 2) {
             jinx_log_error() << "firmware version mismatch\n";
             return async_return();
         }
@@ -1943,7 +1967,7 @@ static void device_attached(fingerpp::Manager* manager, fingerpp::USBDeviceInfo*
 
 static fingerpp::USBDeviceInfo _device {
     ._vendor = 0x10a5,
-    ._product = 0x9201,
+    ._product = 0xa900,
     ._callback = device_attached
 };
 

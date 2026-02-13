@@ -22,4 +22,4 @@ cp build/src/fingerprint-ocv /path/to/somewhere
 
 ## Install && Binary
 
-TODO
+[Link](./INSTALL.md)

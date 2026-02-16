@@ -1,0 +1,13 @@
+[Unit]
+Description=Fingerprint Authentication Daemon (OCV)
+After=systemd-logind.service
+Requires=systemd-logind.service
+
+[Service]
+Type=dbus
+BusName=net.reactivated.Fprint
+ExecStart=/usr/libexec/fprintd --bus=system
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -4,9 +4,8 @@ Supported device: FPC Sensor Controller L:0002 FW:022.26.2.x (10a5:a900)
 
 ## Environment
 
-Ubuntu: `apt install -y --no-install-recommends libusb-1.0-0-dev libevent-dev libdbus-1-dev libssl-dev libopencv-dev make cmake pkg-config gcc g++`
+Ubuntu: `apt install -y --no-install-recommends libfprint2 fprintd pam_fprintd libusb-1.0-0-dev libevent-dev libdbus-1-dev libssl-dev libopencv-dev make cmake pkg-config gcc g++`
 
-Archlinux: `pacman --noconfirm -S libusb libevent libdbus openssl libopencv-dev make cmake pkg-config gcc`
 
 ## Build
 
@@ -23,3 +22,7 @@ cp build/src/fingerprint-ocv /path/to/somewhere
 ## Install && Binary
 
 [Link](./INSTALL.md)
+
+## Warning!
+
+Instruction don't be tested on any devices. It should work on Ubuntu, but i think i missed something, when was writing it. When i test this instruction and it will be working, this warning will be deleted. 

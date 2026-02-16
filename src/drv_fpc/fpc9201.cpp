@@ -1704,7 +1704,8 @@ protected:
                 }
                     break;
                 case ev_tls:
-                    abort();
+                    jinx_log_warning() << "tls event ev_tls received - ignoring" << std::endl;
+                    break;
                 case ev_finger_down:
                     if (_ready) {
                         return *this / _put_image(&_image_queue, FPCEvent{FPCEvent::FPP_FingerDown, {}, {}}) / &WorkerControl::delay_get_image;

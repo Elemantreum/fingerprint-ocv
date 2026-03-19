@@ -22,3 +22,4 @@ CTestTestfile.cmake
 _deps
 CMakeUserPresets.json
 DartConfiguration.tcl
+*.log

@@ -208,7 +208,7 @@ protected:
         auto state = AsyncRoutine::handle_error(error);
         if (state == ControlState::Raise) {
             if (error.category() == category_awaitable()) {
-                switch(error.as<ErrorAwaitable>()) {
+                switch (error.as<ErrorAwaitable>()) {
                     case jinx::ErrorAwaitable::Cancelled:
                         return async_return();
                     default:
@@ -382,6 +382,9 @@ class WorkerListen : public AsyncRoutine, private jinx::Queue2<std::queue<AsyncD
 
     std::string _rule{};
 
+    bool _filter_installed{false};
+    bool _exiting{false};
+
     AsyncDBusMessage _pending_message{};
 
     AsyncDBusSendWithReply _send_message{};
@@ -401,11 +404,18 @@ public:
     }
     
     Async handle_error(const error::Error& error) override {
+        if (_filter_installed) {
+            dbus_connection_remove_filter(_connection, filter_signal, this);
+            _filter_installed = false;
+        }
         return async_return();
     }
-    
+
     void async_finalize() noexcept override {
-        dbus_connection_remove_filter(_connection, filter_signal, this);
+        if (_filter_installed) {
+            dbus_connection_remove_filter(_connection, filter_signal, this);
+            _filter_installed = false;
+        }
         AsyncRoutine::async_finalize();
     }
 
@@ -427,19 +437,18 @@ public:
             return async_throw(ErrorAsyncDBus::failed);
         }
         dbus_connection_add_filter(_connection, filter_signal, this, nullptr);
+        _filter_installed = true;
         async_start(&WorkerListen::exit);
         return this->async_suspend();
     }
 
     Async exit() {
-        AsyncDBusMessage msg{
-            dbus_message_new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "RemoveMatch")
-        };
-        DBusMessageIter args{};
-        dbus_message_iter_init_append(msg, &args);
-        const char* string = _rule.c_str();
-        dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &string);
-        return *this / _send_message(_connection, msg, std::chrono::seconds(30)) / &WorkerListen::async_return;
+
+        if (_filter_installed) {
+            dbus_connection_remove_filter(_connection, filter_signal, this);
+            _filter_installed = false;
+        }
+        return async_return();
     }
 
     AsyncDBusMessage queue2_put() override {
@@ -813,10 +822,17 @@ protected:
 
         if (new_owner[0] == 0) {
             syslog(LOG_AUTH | LOG_INFO, "disconnected");
+
+            if (_name_owner_chaged_task != nullptr) {
+                _name_owner_chaged_task->resume({}) >> JINX_IGNORE_RESULT;
+                _name_owner_chaged_task.reset();
+            }
+
             if (_enroll_verify_task != nullptr) {
                 async_cancel(_enroll_verify_task) >> JINX_IGNORE_RESULT;
                 _enroll_verify_task.reset();
             }
+
             _claimed = false;
             _claimed_sender.clear();
             _claimed_user.clear();
@@ -1291,7 +1307,7 @@ protected:
             return state;
         }
 
-        if (error.category() == jinx::usb::category_transfer()) {
+        if (error.category() == jinx::usb::category_usb()) {
             if (static_cast<libusb_error>(error.value()) == LIBUSB_ERROR_NO_DEVICE) {
                 _event_queue->reset();
                 return async_return();

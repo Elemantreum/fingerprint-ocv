@@ -103,10 +103,12 @@ static
 cv::Mat load_data_and_proc(const std::vector<unsigned char>& pixels)
 {
     // Берём первые 64 байта из каждой строки шириной 128
-    cv::Mat raw{cv::Size{SENSOR_WIDTH, SENSOR_HEIGHT}, CV_8UC1};
+    cv::Mat raw64{cv::Size{SENSOR_WIDTH, SENSOR_HEIGHT}, CV_8UC1};
     for (int row = 0; row < SENSOR_HEIGHT; row++) {
-        memcpy(raw.data + row * SENSOR_WIDTH, pixels.data() + row * 128, SENSOR_WIDTH);
+        memcpy(raw64.data + row * SENSOR_WIDTH, pixels.data() + row * 128, SENSOR_WIDTH);
     }
+
+    cv::Mat raw = raw64.colRange(0, SENSOR_WIDTH - 2).clone();
 
     cv::Mat eqh{cv::Size{SENSOR_WIDTH, SENSOR_HEIGHT}, CV_8UC1};
     cv::equalizeHist(raw, eqh);
@@ -261,7 +263,6 @@ protected:
             assert(pixels.size() == SENSOR_RAW_SIZE);
 
             cv::Mat partial = load_data_and_proc(pixels);
-
 
 #ifdef USE_HIGHGUI
             bool debug = GET_OPTION(bool, "debug");
